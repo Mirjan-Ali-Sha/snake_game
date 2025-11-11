@@ -26,12 +26,12 @@
             "description": "A modern, glossy snake game.",
             "icons": [
                 {
-                    "src": "https.placehold.co/192x192/3b82f6/FFFFFF?text=Snake&font=inter",
+                    "src": "https://placehold.co/192x192/3b82f6/FFFFFF?text=Snake&font=inter",
                     "sizes": "192x192",
                     "type": "image/png"
                 },
                 {
-                    "src": "https.placehold.co/512x512/3b82f6/FFFFFF?text=Snake&font=inter",
+                    "src": "https://placehold.co/512x512/3b82f6/FFFFFF?text=Snake&font=inter",
                     "sizes": "512x512",
                     "type": "image/png"
                 }
@@ -44,12 +44,16 @@
     </script>
     
     <style>
+        html {
+            height: 100%;
+        }
         body {
             font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, #1e3a8a 0%, #111827 50%, #881337 100%);
-            min-height: 100vh;
+            /* MODIFIED: Use min-height and align-items: center to vertically center the game */
+            min-height: 100vh; 
             display: flex;
-            align-items: flex-start;
+            align-items: center; /* WAS: flex-start */
             justify-content: center;
             overflow: auto;
             padding: 2rem 1rem;
@@ -291,12 +295,44 @@
     </div>
 
     <script>
-        // Inline Service Worker for Offline Caching
-        /* * NOTE: Removed the Service Worker script block.
-         * Registering a 'blob:' URL is not supported by browsers.
-         * The app will still be installable via the manifest and
-         * will work offline once cached as a single HTML file.
-        */
+        // <!-- NEW: Inline Service Worker for Offline Caching & PWA Install -->
+        if ('serviceWorker' in navigator) {
+            const swContent = `
+                const CACHE_NAME = 'snake-game-v1';
+                const ASSETS_TO_CACHE = [
+                    './' // Cache the main HTML file itself
+                ];
+
+                self.addEventListener('install', event => {
+                    event.waitUntil(
+                        caches.open(CACHE_NAME).then(cache => {
+                            return cache.addAll(ASSETS_TO_CACHE);
+                        })
+                    );
+                });
+
+                self.addEventListener('fetch', event => {
+                    event.respondWith(
+                        caches.match(event.request).then(response => {
+                            return response || fetch(event.request);
+                        })
+                    );
+                });
+            `;
+            const swBlob = new Blob([swContent], { type: 'application/javascript' });
+            const swUrl = URL.createObjectURL(swBlob);
+
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register(swUrl)
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+
 
         document.addEventListener('DOMContentLoaded', () => {
             // === DOM Elements ===
@@ -343,6 +379,7 @@
             let initialSpeed = 150; // Default speed
             const STORAGE_KEY = 'snakeGameState';
             const HIGH_SCORE_KEY = 'snakeHighScore';
+            let inactivityTimer; // NEW: Inactivity timer
 
             // Gradients
             let snakeGradients = [];
@@ -658,6 +695,7 @@
                 
                 drawGame();
                 showGameScreen();
+                resetInactivityTimer(); // NEW: Start inactivity timer
             }
             
             function resumeGame() {
@@ -669,6 +707,7 @@
                 if (!isPaused) {
                     clearInterval(gameInterval);
                     gameInterval = setInterval(gameLoop, currentSpeed);
+                    resetInactivityTimer(); // NEW: Reset timer on resume
                 } else {
                     updatePauseUI(); // Show pause overlay if resuming to a paused state
                 }
@@ -677,6 +716,7 @@
             function endGame() {
                 gameOver = true;
                 isPaused = false;
+                clearTimeout(inactivityTimer); // NEW: Clear timer on game over
                 updatePauseUI();
                 clearInterval(gameInterval);
                 clearState(); 
@@ -700,9 +740,11 @@
                 
                 if (isPaused) {
                     clearInterval(gameInterval);
+                    clearTimeout(inactivityTimer); // NEW: Clear timer when paused
                 } else {
                     clearInterval(gameInterval);
                     gameInterval = setInterval(gameLoop, currentSpeed);
+                    resetInactivityTimer(); // NEW: Reset timer when unpaused
                 }
             }
             
@@ -718,8 +760,25 @@
                 }
             }
 
+            // --- NEW: Inactivity Timer Functions ---
+            function pauseOnInactivity() {
+                if (!gameOver && !isPaused) {
+                    togglePause();
+                }
+            }
+
+            function resetInactivityTimer() {
+                clearTimeout(inactivityTimer);
+                if (!gameOver && !isPaused) {
+                    inactivityTimer = setTimeout(pauseOnInactivity, 10000); // 10 seconds
+                }
+            }
+
             // --- Input Handlers ---
             function changeDirection(e) {
+                // NEW: Reset inactivity timer on any key press
+                // Note: We call resetInactivityTimer() from the global event listener now.
+
                 const goingUp = direction === 'up';
                 const goingDown = direction === 'down';
                 const goingLeft = direction === 'left';
@@ -750,8 +809,11 @@
             }
             
             function handleDpad(dir) {
+                // NEW: Reset inactivity timer on D-pad press
+                // Note: We call resetInactivityTimer() from the global mousedown/touchstart listeners.
+
                 const goingUp = direction === 'up';
-                const goingDown = direction === 'down';
+                const goingDown = direction ==='down';
                 const goingLeft = direction === 'left';
                 const goingRight = direction === 'right';
 
@@ -797,6 +859,11 @@
                 }
             });
             
+            // --- NEW: Global Activity Listeners for Inactivity Timer ---
+            document.addEventListener('keydown', resetInactivityTimer);
+            document.addEventListener('mousedown', resetInactivityTimer);
+            document.addEventListener('touchstart', resetInactivityTimer);
+
             // --- Initial Load ---
             // createGradients(); // <-- This call was moved to the top
             showStartScreen();
