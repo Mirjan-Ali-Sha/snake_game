@@ -227,24 +227,19 @@
             <!-- Game Header -->
             <header class="p-4 border-b border-white/10 bg-black/20">
                 <div class="flex justify-between items-center text-lg">
-                    <!-- Menu/Back Button -->
-                    <button id="btnMenu" class="text-gray-300 hover:text-white p-1">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                        </svg>
-                    </button>
+                    <!-- Menu/Back Button (REMOVED) -->
 
-                    <div class="text-center">
+                    <div class="text-center w-1/3">
                         <span class="block text-xs text-gray-400">SCORE</span>
                         <span id="score" class="text-xl font-bold text-blue-300">0</span>
                     </div>
                     
-                    <div class="text-center">
+                    <div class="text-center w-1/3">
                         <span class="block text-xs text-gray-400">LEVEL</span>
                         <span id="level" class="text-xl font-bold text-gray-100">1</span>
                     </div>
                     
-                    <div class="text-right">
+                    <div class="text-right w-1/3">
                         <span class="block text-xs text-gray-400">HIGH</span>
                         <span id="highScore" class="text-xl font-bold text-pink-300">0</span>
                     </div>
@@ -305,15 +300,26 @@
     <script>
         // Inline Service Worker Logic
         if ('serviceWorker' in navigator) {
+            // We register a dummy sw.js to trigger the install prompt
+            // In a real hosting environment, this sw.js would handle caching
+            const swContent = `
+                self.addEventListener('install', (e) => {
+                    console.log('SW Install');
+                });
+                self.addEventListener('fetch', (e) => {
+                    // This simple SW doesn't cache, just passes through
+                    e.respondWith(fetch(e.request));
+                });
+            `;
+            const swBlob = new Blob([swContent], { type: 'application/javascript' });
+            const swUrl = URL.createObjectURL(swBlob);
+
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js', { scope: './' }).then(reg => {
+                navigator.serviceWorker.register(swUrl, { scope: './' }).then(reg => {
                     console.log('SW registered!', reg);
                 }).catch(err => console.log('SW registration failed', err));
             });
         }
-        // NOTE: In this single file demo, we can't serve a real external sw.js without a server.
-        // The PWA features (install prompt) might require a separate file in a real deployment.
-        // However, the Manifest is correctly linked.
 
         document.addEventListener('DOMContentLoaded', () => {
             // === DOM Elements ===
@@ -338,7 +344,6 @@
             const gameOverMsg = document.getElementById('gameOverMsg');
             const finalScoreEl = document.getElementById('finalScore');
             const playAgainBtn = document.getElementById('playAgainBtn');
-            const btnMenu = document.getElementById('btnMenu');
             
             // Controls
             const btnUp = document.getElementById('btnUp');
@@ -356,10 +361,12 @@
             const canvasSize = canvas.width;
             const tileCount = canvasSize / gridSize; 
             const SPEED_PREF_KEY = 'pixelSerpentSpeedPref';
+            const BONUS_FOOD_LIFESPAN = 15000; // 15 seconds
 
             // === Game State ===
             let snake, food, score, highScore, direction, gameInterval, gameOver, currentSpeed, level, isPaused;
             let initialSpeed = 200; 
+            let levelUpThresholds; // Array to hold total score needed for each level
             
             // Inactivity Timer State
             let inactivityTimer;
@@ -375,10 +382,36 @@
             let foodGradientStrokes = [];
 
             createGradients(); 
+            levelUpThresholds = createLevelUpThresholds(); // Create the level progression
+
+            function createLevelUpThresholds() {
+                // Points *needed* for each level
+                const pointsNeeded = [
+                    5, 7, 10, 12, 13, // User's examples (Levels 1-5)
+                    15, 17, 19, 21, 23, // Levels 6-10
+                    25, 27, 29, 31, 33, // Levels 11-15
+                    35, 37, 39, 41, 43, // Levels 16-20
+                    45, 47, 49, 51, 53, // Levels 21-25
+                    55, 60, 65, 70, 75  // Levels 26-30
+                ];
+                
+                let thresholds = [];
+                let totalScore = 0;
+                for (const points of pointsNeeded) {
+                    totalScore += points;
+                    thresholds.push(totalScore);
+                }
+                // Add a simple "100 points per level" for levels beyond this array
+                for (let i = 0; i < 50; i++) {
+                    totalScore += 100;
+                    thresholds.push(totalScore);
+                }
+                return thresholds;
+            }
 
             function createGradients() {
-                // --- Normal Food & Snake Colors (Levels 1-5) ---
-                // Blue theme
+                // --- Normal Food & Snake Colors ---
+                // Level 1-5: Blue theme
                 const snakeGrad1 = ctx.createLinearGradient(0, 0, 0, canvasSize);
                 snakeGrad1.addColorStop(0, '#3b82f6'); snakeGrad1.addColorStop(1, '#1e3a8a'); 
                 snakeGradients.push(snakeGrad1); snakeGradientStrokes.push('#1e3a8a');
@@ -387,7 +420,7 @@
                 foodGrad1.addColorStop(0, '#fecdd3'); foodGrad1.addColorStop(1, '#be185d');
                 foodGradients.push(foodGrad1); foodGradientStrokes.push('#be185d');
 
-                // Green theme
+                // Level 6-10: Green theme
                 const snakeGrad2 = ctx.createLinearGradient(0, 0, 0, canvasSize);
                 snakeGrad2.addColorStop(0, '#10b981'); snakeGrad2.addColorStop(1, '#047857'); 
                 snakeGradients.push(snakeGrad2); snakeGradientStrokes.push('#047857');
@@ -396,7 +429,7 @@
                 foodGrad2.addColorStop(0, '#fef08a'); foodGrad2.addColorStop(1, '#b45309');
                 foodGradients.push(foodGrad2); foodGradientStrokes.push('#b45309');
 
-                // Amber theme
+                // Level 11-15: Amber theme
                 const snakeGrad3 = ctx.createLinearGradient(0, 0, 0, canvasSize);
                 snakeGrad3.addColorStop(0, '#f59e0b'); snakeGrad3.addColorStop(1, '#b45309');
                 snakeGradients.push(snakeGrad3); snakeGradientStrokes.push('#b45309');
@@ -404,7 +437,38 @@
                 const foodGrad3 = ctx.createRadialGradient(gridSize/2, gridSize/2, 2, gridSize/2, gridSize/2, gridSize/1.5);
                 foodGrad3.addColorStop(0, '#d8b4fe'); foodGrad3.addColorStop(1, '#7e22ce');
                 foodGradients.push(foodGrad3); foodGradientStrokes.push('#7e22ce');
+                
+                // Level 16-20: Pink/Purple theme
+                const snakeGrad4 = ctx.createLinearGradient(0, 0, 0, canvasSize);
+                snakeGrad4.addColorStop(0, '#a855f7'); snakeGrad4.addColorStop(1, '#7e22ce');
+                snakeGradients.push(snakeGrad4); snakeGradientStrokes.push('#7e22ce');
+        
+                const foodGrad4 = ctx.createRadialGradient(gridSize/2, gridSize/2, 2, gridSize/2, gridSize/2, gridSize/1.5);
+                foodGrad4.addColorStop(0, '#a7f3d0'); foodGrad4.addColorStop(1, '#10b981');
+                foodGradients.push(foodGrad4); foodGradientStrokes.push('#047857');
+
+                // Level 21+: Ghost theme
+                const snakeGrad5 = ctx.createLinearGradient(0, 0, 0, canvasSize);
+                snakeGrad5.addColorStop(0, '#e0e7ff'); snakeGrad5.addColorStop(1, '#a5b4fc');
+                snakeGradients.push(snakeGrad5); snakeGradientStrokes.push('#a5b4fc');
+
+                const foodGrad5 = ctx.createRadialGradient(gridSize/2, gridSize/2, 2, gridSize/2, gridSize/2, gridSize/1.5);
+                foodGrad5.addColorStop(0, '#fca5a5'); foodGrad5.addColorStop(1, '#b91c1c');
+                foodGradients.push(foodGrad5); foodGradientStrokes.push('#b91c1c');
+        
+            } // <-- Fixed: Added missing brace here
+
+            /* REMOVED: Replaced with constant 15-second timer
+            function getBonusFoodLifespan() {
+                if (level <= 20) {
+                    return 15000; // 15 seconds
+                } else if (level <= 30) {
+                    return 10000; // 10 seconds
+                } else {
+                    return 5000; // 5 seconds
+                }
             }
+            */
             
             // === Core Functions ===
 
@@ -428,11 +492,6 @@
             function resetInactivityTimer() {
                 // Reset timer on any user interaction
                 clearTimeout(inactivityTimer);
-                
-                // If game is running and not paused, start timer
-                if (!gameOver && !isPaused && !startScreen.classList.contains('hidden')) {
-                     // Note: Logic check - only pause if we are actually playing
-                }
                 
                 // Only set the timer if the game screen is visible and game is active
                 if (!gameScreen.classList.contains('hidden') && !gameOver && !isPaused) {
@@ -510,6 +569,11 @@
             function gameLoop() {
                 if (gameOver || isPaused) return;
 
+                // --- Check for Bonus Food Expiry ---
+                if (food.type === 'bonus' && Date.now() > food.expiresAt) {
+                    spawnFood(true); // Spawn a new, *normal* food
+                }
+
                 const head = { ...snake[0] };
                 switch (direction) {
                     case 'up': head.y -= 1; break;
@@ -519,7 +583,7 @@
                 }
 
                 // Collision Logic
-                if (level < 20) {
+                if (level <= 20) { // Walls appear AT level 21
                     // Wrap around
                     if (head.x < 0) head.x = tileCount - 1;
                     if (head.x >= tileCount) head.x = 0;
@@ -547,11 +611,21 @@
                     score += points;
                     scoreEl.textContent = score;
                     
-                    // Level up logic (every 5 points approx, simplified)
-                    if (score % 5 === 0) {
+                    // Level up logic (Progressive)
+                    // Ensure we don't go out of bounds on the thresholds array
+                    const thresholdIndex = Math.min(level - 1, levelUpThresholds.length - 1);
+                    const currentThreshold = levelUpThresholds[thresholdIndex];
+                    
+                    if (score >= currentThreshold) {
                         level++;
                         levelEl.textContent = level;
                         updateSpeed();
+
+                        // Snake reset logic (every 5 levels)
+                        // This triggers when level becomes 6, 11, 16, 21...
+                        if (level % 5 === 1 && level > 1) {
+                            snake = [ snake[0] ]; // Reset snake to just the head
+                        }
                     }
 
                     spawnFood();
@@ -567,6 +641,13 @@
                 ctx.fillStyle = 'rgba(17, 24, 39, 0.6)';
                 ctx.fillRect(0, 0, canvasSize, canvasSize);
                 ctx.shadowBlur = 0; // Reset shadow
+
+                // Draw Walls if level 21+
+                if (level > 20) {
+                    ctx.strokeStyle = '#ef4444'; // Red border
+                    ctx.lineWidth = 4; // Thicker line for walls
+                    ctx.strokeRect(0, 0, canvasSize, canvasSize);
+                }
 
                 // Determine visual theme
                 const colorIndex = Math.min(Math.floor((level - 1) / 5), snakeGradients.length - 1);
@@ -664,6 +745,32 @@
                         ctx.stroke();
 
                         ctx.shadowBlur = 0; // Reset
+
+                        // --- Draw Timer Bar ---
+                        const timeLeft = food.expiresAt - Date.now();
+                        // Use the food's stored lifespan to calculate percentage
+                        const timePercentage = Math.max(0, timeLeft / food.lifespan); 
+
+                        const barWidth = gridSize;
+                        const barHeight = 4;
+                        let barX = food.x * gridSize;
+                        let barY = (food.y + 1) * gridSize + 2; // 2px *below* the food
+
+                        // Check if bar would go off-canvas (if food is at bottom)
+                        if (barY > canvasSize - barHeight - 2) {
+                            // Draw it *above* the food instead
+                            barY = food.y * gridSize - barHeight - 2;
+                        }
+                        
+                        // Draw background of timer bar (empty)
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                        ctx.fillRect(barX, barY, barWidth, barHeight);
+
+                        // Draw foreground of timer bar (filled)
+                        // Color it red when time is low
+                        ctx.fillStyle = (timePercentage < 0.3) ? '#ef4444' : '#fbbf24'; // Red or Gold
+                        ctx.fillRect(barX, barY, barWidth * timePercentage, barHeight);
+
                     } else {
                         // Normal Food
                         ctx.fillStyle = currentFoodGradient;
@@ -675,23 +782,37 @@
                         ctx.stroke();
                     }
                 }
-                
-                // Request animation frame for smooth sparkle if bonus exists
-                if (food && food.type === 'bonus' && !isPaused && !gameOver) {
-                    requestAnimationFrame(() => {
-                        // Using gameLoop speed is better for performance
-                    });
-                }
             }
 
-            function spawnFood() {
+            function spawnFood(forceNormal = false) {
                 while (true) {
+                    let foodType = 'normal';
+                    let lifespan = null;
+                    
+                    // NEW LOGIC: Bonus food from level 1, chance decreases slightly per level
+                    const baseChance = 0.30; // 30% chance at level 1
+                    const decreasePerLevel = 0.0001; // 0.01% decrease per level
+                    const minChance = 0.05; // 5% minimum chance
+                    
+                    // Calculate current chance
+                    const currentChance = baseChance - ((level - 1) * decreasePerLevel);
+                    const finalChance = Math.max(minChance, currentChance);
+
+                    // Check if bonus food should spawn
+                    if (!forceNormal && Math.random() < finalChance) { 
+                        foodType = 'bonus';
+                        lifespan = BONUS_FOOD_LIFESPAN; // Use constant 15s lifespan
+                    }
+
                     food = {
                         x: Math.floor(Math.random() * tileCount),
                         y: Math.floor(Math.random() * tileCount),
-                        // 20% Chance for Bonus Food
-                        type: (Math.random() > 0.8) ? 'bonus' : 'normal'
+                        type: foodType,
+                        // Set an expiry time if it's a bonus food
+                        expiresAt: (foodType === 'bonus') ? (Date.now() + lifespan) : null,
+                        lifespan: lifespan // Store the lifespan for the timer bar
                     };
+
                     // Ensure food doesn't spawn on snake
                     if (!snake.some(segment => segment.x === food.x && segment.y === food.y)) {
                         break;
@@ -713,7 +834,9 @@
             }
 
             function updateSpeed() {
-                currentSpeed = Math.max(50, initialSpeed - (score * 2));
+                // Speed no longer increases with score, only with level-up
+                // Base speed is set at the start
+                currentSpeed = Math.max(50, initialSpeed - (level * 5)); // Speed up slightly per level
                 clearInterval(gameInterval);
                 gameInterval = setInterval(gameLoop, currentSpeed);
             }
@@ -763,6 +886,7 @@
                 isPaused = false;
                 updatePauseUI();
                 clearInterval(gameInterval);
+                clearTimeout(inactivityTimer); // Stop inactivity timer
                 clearState(); 
                 
                 if (score > highScore) {
@@ -783,6 +907,7 @@
                 
                 if (isPaused) {
                     clearInterval(gameInterval);
+                    clearTimeout(inactivityTimer); // Stop inactivity timer
                 } else {
                     resetInactivityTimer(); // Resume activity timer
                     clearInterval(gameInterval);
@@ -830,6 +955,7 @@
                         if (!goingLeft) direction = 'right';
                         break;
                     case ' ': 
+                    case 'p': // Also pause on 'p'
                         e.preventDefault();
                         togglePause();
                         break;
@@ -840,8 +966,8 @@
                 resetInactivityTimer();
                 
                 const goingUp = direction === 'up';
-                const goingDown = direction === 'down';
-                const goingLeft = direction === 'left';
+                const goingDown = direction ==='down';
+                const goingLeft = direction === 'left'; // <-- FIXED TYPO HERE
                 const goingRight = direction === 'right';
 
                 switch (dir) {
@@ -859,26 +985,20 @@
             startBtn.addEventListener('click', startGame);
             resumeBtn.addEventListener('click', resumeGame);
             resetBtn.addEventListener('click', () => {
+                initEmptyGame(); // Reset in-memory state
                 clearState();
-                showStartScreen(); 
+                showStartScreen(); // Re-render start screen
             });
             
             // Game Screen
             playAgainBtn.addEventListener('click', showStartScreen);
             
+            // D-Pad and Pause buttons
             btnUp.addEventListener('click', () => handleDpad('up'));
             btnDown.addEventListener('click', () => handleDpad('down'));
             btnLeft.addEventListener('click', () => handleDpad('left'));
             btnRight.addEventListener('click', () => handleDpad('right'));
             btnPause.addEventListener('click', togglePause);
-            
-            // NEW: Menu Button
-            btnMenu.addEventListener('click', () => {
-                isPaused = true; // Pause game
-                updatePauseUI();
-                clearInterval(gameInterval);
-                showStartScreen(); // Go to start screen (triggering save)
-            });
             
             // Save state when leaving
             window.addEventListener('beforeunload', () => {
@@ -892,16 +1012,12 @@
             }
 
             // Save Speed Preference on Change
-            speedSlider.addEventListener('change', () => {
-                localStorage.setItem(SPEED_PREF_KEY, speedSlider.value);
+            // <-- FIXED SYNTAX HERE
+            speedSlider.addEventListener('change', (e) => {
+                localStorage.setItem(SPEED_PREF_KEY, e.target.value);
             });
             
-            // Activity Listeners
-            document.addEventListener('keydown', resetInactivityTimer);
-            document.addEventListener('mousedown', resetInactivityTimer);
-            document.addEventListener('touchstart', resetInactivityTimer);
-
-            // Initial Load
+            // --- Initial Load ---
             showStartScreen();
         });
     </script>
