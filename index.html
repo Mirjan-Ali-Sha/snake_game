@@ -355,6 +355,7 @@
             const gridSize = 20; 
             const canvasSize = canvas.width;
             const tileCount = canvasSize / gridSize; 
+            const SPEED_PREF_KEY = 'pixelSerpentSpeedPref';
 
             // === Game State ===
             let snake, food, score, highScore, direction, gameInterval, gameOver, currentSpeed, level, isPaused;
@@ -882,6 +883,17 @@
             // Save state when leaving
             window.addEventListener('beforeunload', () => {
                 if (!gameOver) saveState();
+            });
+
+            // Load Speed Preference
+            const savedSpeedPref = localStorage.getItem(SPEED_PREF_KEY);
+            if (savedSpeedPref) {
+                speedSlider.value = savedSpeedPref;
+            }
+
+            // Save Speed Preference on Change
+            speedSlider.addEventListener('change', () => {
+                localStorage.setItem(SPEED_PREF_KEY, speedSlider.value);
             });
             
             // Activity Listeners
