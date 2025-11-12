@@ -44,19 +44,17 @@
     </script>
     
     <style>
-        html {
-            height: 100%;
-        }
         body {
             font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, #1e3a8a 0%, #111827 50%, #881337 100%);
-            /* MODIFIED: Use min-height and align-items: center to vertically center the game */
-            min-height: 100vh; 
+            min-height: 100vh;
             display: flex;
-            align-items: center; /* WAS: flex-start */
+            align-items: center; /* Centered vertically */
             justify-content: center;
             overflow: auto;
             padding: 2rem 1rem;
+            /* Prevent pull-to-refresh on mobile */
+            overscroll-behavior-y: contain;
         }
 
         .game-container {
@@ -126,6 +124,7 @@
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3), 
                         inset 0 1px 1px rgba(255, 255, 255, 0.1);
             transition: all 0.2s ease;
+            touch-action: manipulation; /* Improves touch response */
         }
 
         .d-pad-btn:active {
@@ -141,7 +140,7 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
         
-        /* Custom styles for the range slider */
+        /* Range Slider Styling */
         input[type="range"] {
             -webkit-appearance: none;
             appearance: none;
@@ -226,20 +225,28 @@
         <!-- ======================= -->
         <div id="gameScreen" class="hidden">
             <!-- Game Header -->
-            <header class="p-5">
+            <header class="p-4 border-b border-white/10 bg-black/20">
                 <div class="flex justify-between items-center text-lg">
-                    <div class="text-left">
-                        <span class="block text-sm text-gray-400">SCORE</span>
-                        <span id="score" class="text-2xl font-bold text-blue-300">0</span>
-                    </div>
-                    <!-- New Level Display -->
+                    <!-- Menu/Back Button -->
+                    <button id="btnMenu" class="text-gray-300 hover:text-white p-1">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                        </svg>
+                    </button>
+
                     <div class="text-center">
-                        <span class="block text-sm text-gray-400">LEVEL</span>
-                        <span id="level" class="text-2xl font-bold text-gray-100">1</span>
+                        <span class="block text-xs text-gray-400">SCORE</span>
+                        <span id="score" class="text-xl font-bold text-blue-300">0</span>
                     </div>
+                    
+                    <div class="text-center">
+                        <span class="block text-xs text-gray-400">LEVEL</span>
+                        <span id="level" class="text-xl font-bold text-gray-100">1</span>
+                    </div>
+                    
                     <div class="text-right">
-                        <span class="block text-sm text-gray-400">HIGH SCORE</span>
-                        <span id="highScore" class="text-2xl font-bold text-pink-300">0</span>
+                        <span class="block text-xs text-gray-400">HIGH</span>
+                        <span id="highScore" class="text-xl font-bold text-pink-300">0</span>
                     </div>
                 </div>
             </header>
@@ -249,7 +256,7 @@
                 <canvas id="gameCanvas" width="360" height="360" class="w-full h-auto block"></canvas>
                 
                 <!-- Game Over Message -->
-                <div id="gameOverMsg" class="absolute inset-0 flex-col items-center justify-center bg-black/80 text-white text-center hidden p-4">
+                <div id="gameOverMsg" class="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-white text-center hidden p-4">
                     <h2 class="text-4xl font-bold text-red-500">Game Over</h2>
                     <p class="text-lg mt-2 mb-6">Your score was <span id="finalScore">0</span></p>
                     <button id="playAgainBtn" class="glossy-btn glossy-btn-red w-full max-w-xs py-3 rounded-xl text-lg font-bold text-white uppercase tracking-wider">
@@ -258,8 +265,9 @@
                 </div>
 
                 <!-- Pause Message -->
-                <div id="pauseMsg" class="absolute inset-0 flex-col items-center justify-center bg-black/80 text-white text-center hidden p-4">
+                <div id="pauseMsg" class="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-white text-center hidden p-4">
                     <h2 class="text-5xl font-bold text-blue-300">PAUSED</h2>
+                    <p class="mt-4 text-gray-400 text-sm">Tap Pause or Space to Resume</p>
                 </div>
             </div>
 
@@ -274,7 +282,7 @@
                     <button id="btnLeft" class="d-pad-btn col-span-1 rounded-lg p-3 flex items-center justify-center">
                         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
                     </button>
-                    <!-- New Pause/Play Button -->
+                    <!-- Pause/Play Button -->
                     <button id="btnPause" class="d-pad-btn col-span-1 rounded-full p-3 flex items-center justify-center">
                         <!-- Pause Icon -->
                         <svg id="iconPause" class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -295,44 +303,17 @@
     </div>
 
     <script>
-        // <!-- NEW: Inline Service Worker for Offline Caching & PWA Install -->
+        // Inline Service Worker Logic
         if ('serviceWorker' in navigator) {
-            const swContent = `
-                const CACHE_NAME = 'snake-game-v1';
-                const ASSETS_TO_CACHE = [
-                    './' // Cache the main HTML file itself
-                ];
-
-                self.addEventListener('install', event => {
-                    event.waitUntil(
-                        caches.open(CACHE_NAME).then(cache => {
-                            return cache.addAll(ASSETS_TO_CACHE);
-                        })
-                    );
-                });
-
-                self.addEventListener('fetch', event => {
-                    event.respondWith(
-                        caches.match(event.request).then(response => {
-                            return response || fetch(event.request);
-                        })
-                    );
-                });
-            `;
-            const swBlob = new Blob([swContent], { type: 'application/javascript' });
-            const swUrl = URL.createObjectURL(swBlob);
-
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register(swUrl)
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    })
-                    .catch(err => {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
+                navigator.serviceWorker.register('sw.js', { scope: './' }).then(reg => {
+                    console.log('SW registered!', reg);
+                }).catch(err => console.log('SW registration failed', err));
             });
         }
-
+        // NOTE: In this single file demo, we can't serve a real external sw.js without a server.
+        // The PWA features (install prompt) might require a separate file in a real deployment.
+        // However, the Manifest is correctly linked.
 
         document.addEventListener('DOMContentLoaded', () => {
             // === DOM Elements ===
@@ -357,8 +338,9 @@
             const gameOverMsg = document.getElementById('gameOverMsg');
             const finalScoreEl = document.getElementById('finalScore');
             const playAgainBtn = document.getElementById('playAgainBtn');
+            const btnMenu = document.getElementById('btnMenu');
             
-            // D-pad buttons
+            // Controls
             const btnUp = document.getElementById('btnUp');
             const btnDown = document.getElementById('btnDown');
             const btnLeft = document.getElementById('btnLeft');
@@ -376,10 +358,14 @@
 
             // === Game State ===
             let snake, food, score, highScore, direction, gameInterval, gameOver, currentSpeed, level, isPaused;
-            let initialSpeed = 150; // Default speed
-            const STORAGE_KEY = 'snakeGameState';
-            const HIGH_SCORE_KEY = 'snakeHighScore';
-            let inactivityTimer; // NEW: Inactivity timer
+            let initialSpeed = 200; 
+            
+            // Inactivity Timer State
+            let inactivityTimer;
+            const INACTIVITY_LIMIT = 10000; // 10 seconds
+
+            const STORAGE_KEY = 'pixelSerpentState';
+            const HIGH_SCORE_KEY = 'pixelSerpentHighScore';
 
             // Gradients
             let snakeGradients = [];
@@ -387,80 +373,36 @@
             let foodGradients = [];
             let foodGradientStrokes = [];
 
-            // --- MOVED THIS CALL UP ---
-            // Gradients must be created *before* any draw call.
             createGradients(); 
 
             function createGradients() {
-                // Level 1-4: Blue
+                // --- Normal Food & Snake Colors (Levels 1-5) ---
+                // Blue theme
                 const snakeGrad1 = ctx.createLinearGradient(0, 0, 0, canvasSize);
-                snakeGrad1.addColorStop(0, '#3b82f6'); 
-                snakeGrad1.addColorStop(1, '#1e3a8a'); 
-                snakeGradients.push(snakeGrad1);
-                snakeGradientStrokes.push('#1e3a8a');
+                snakeGrad1.addColorStop(0, '#3b82f6'); snakeGrad1.addColorStop(1, '#1e3a8a'); 
+                snakeGradients.push(snakeGrad1); snakeGradientStrokes.push('#1e3a8a');
                 
                 const foodGrad1 = ctx.createRadialGradient(gridSize/2, gridSize/2, 2, gridSize/2, gridSize/2, gridSize/1.5);
-                foodGrad1.addColorStop(0, '#fecdd3'); 
-                foodGrad1.addColorStop(0.7, '#ec4899'); 
-                foodGrad1.addColorStop(1, '#be185d');
-                foodGradients.push(foodGrad1);
-                foodGradientStrokes.push('#be185d');
+                foodGrad1.addColorStop(0, '#fecdd3'); foodGrad1.addColorStop(1, '#be185d');
+                foodGradients.push(foodGrad1); foodGradientStrokes.push('#be185d');
 
-                // Level 5-9: Green
+                // Green theme
                 const snakeGrad2 = ctx.createLinearGradient(0, 0, 0, canvasSize);
-                snakeGrad2.addColorStop(0, '#10b981'); 
-                snakeGrad2.addColorStop(1, '#047857'); 
-                snakeGradients.push(snakeGrad2);
-                snakeGradientStrokes.push('#047857');
+                snakeGrad2.addColorStop(0, '#10b981'); snakeGrad2.addColorStop(1, '#047857'); 
+                snakeGradients.push(snakeGrad2); snakeGradientStrokes.push('#047857');
                 
                 const foodGrad2 = ctx.createRadialGradient(gridSize/2, gridSize/2, 2, gridSize/2, gridSize/2, gridSize/1.5);
-                foodGrad2.addColorStop(0, '#fef08a'); 
-                foodGrad2.addColorStop(0.7, '#f59e0b'); 
-                foodGrad2.addColorStop(1, '#b45309');
-                foodGradients.push(foodGrad2);
-                foodGradientStrokes.push('#b45309');
+                foodGrad2.addColorStop(0, '#fef08a'); foodGrad2.addColorStop(1, '#b45309');
+                foodGradients.push(foodGrad2); foodGradientStrokes.push('#b45309');
 
-                // Level 10-14: Amber
+                // Amber theme
                 const snakeGrad3 = ctx.createLinearGradient(0, 0, 0, canvasSize);
-                snakeGrad3.addColorStop(0, '#f59e0b');
-                snakeGrad3.addColorStop(1, '#b45309');
-                snakeGradients.push(snakeGrad3);
-                snakeGradientStrokes.push('#b45309');
+                snakeGrad3.addColorStop(0, '#f59e0b'); snakeGrad3.addColorStop(1, '#b45309');
+                snakeGradients.push(snakeGrad3); snakeGradientStrokes.push('#b45309');
 
                 const foodGrad3 = ctx.createRadialGradient(gridSize/2, gridSize/2, 2, gridSize/2, gridSize/2, gridSize/1.5);
-                foodGrad3.addColorStop(0, '#d8b4fe'); 
-                foodGrad3.addColorStop(0.7, '#a855f7'); 
-                foodGrad3.addColorStop(1, '#7e22ce');
-                foodGradients.push(foodGrad3);
-                foodGradientStrokes.push('#7e22ce');
-
-                // Level 15-19: Pink/Purple
-                const snakeGrad4 = ctx.createLinearGradient(0, 0, 0, canvasSize);
-                snakeGrad4.addColorStop(0, '#a855f7');
-                snakeGrad4.addColorStop(1, '#7e22ce');
-                snakeGradients.push(snakeGrad4);
-                snakeGradientStrokes.push('#7e22ce');
-
-                const foodGrad4 = ctx.createRadialGradient(gridSize/2, gridSize/2, 2, gridSize/2, gridSize/2, gridSize/1.5);
-                foodGrad4.addColorStop(0, '#a7f3d0'); 
-                foodGrad4.addColorStop(0.7, '#10b981'); 
-                foodGrad4.addColorStop(1, '#047857');
-                foodGradients.push(foodGrad4);
-                foodGradientStrokes.push('#047857');
-
-                // Level 20+: White/Ghost
-                const snakeGrad5 = ctx.createLinearGradient(0, 0, 0, canvasSize);
-                snakeGrad5.addColorStop(0, '#e0e7ff');
-                snakeGrad5.addColorStop(1, '#a5b4fc');
-                snakeGradients.push(snakeGrad5);
-                snakeGradientStrokes.push('#a5b4fc');
-
-                const foodGrad5 = ctx.createRadialGradient(gridSize/2, gridSize/2, 2, gridSize/2, gridSize/2, gridSize/1.5);
-                foodGrad5.addColorStop(0, '#fca5a5'); 
-                foodGrad5.addColorStop(0.7, '#ef4444'); 
-                foodGrad5.addColorStop(1, '#b91c1c');
-                foodGradients.push(foodGrad5);
-                foodGradientStrokes.push('#b91c1c');
+                foodGrad3.addColorStop(0, '#d8b4fe'); foodGrad3.addColorStop(1, '#7e22ce');
+                foodGradients.push(foodGrad3); foodGradientStrokes.push('#7e22ce');
             }
             
             // === Core Functions ===
@@ -469,23 +411,42 @@
                 snake = [
                     { x: Math.floor(tileCount / 2), y: Math.floor(tileCount / 2) }
                 ];
-                food = { x: -1, y: -1 };
+                food = { x: -1, y: -1, type: 'normal' };
                 score = 0;
-                level = 1; // Reset level
+                level = 1; 
                 direction = 'right';
                 gameOver = true;
                 isPaused = false;
                 scoreEl.textContent = score;
                 levelEl.textContent = level;
                 updatePauseUI();
-                // Draw initial state on canvas
                 drawGame(); 
+            }
+
+            // --- Inactivity Timer ---
+            function resetInactivityTimer() {
+                // Reset timer on any user interaction
+                clearTimeout(inactivityTimer);
+                
+                // If game is running and not paused, start timer
+                if (!gameOver && !isPaused && !startScreen.classList.contains('hidden')) {
+                     // Note: Logic check - only pause if we are actually playing
+                }
+                
+                // Only set the timer if the game screen is visible and game is active
+                if (!gameScreen.classList.contains('hidden') && !gameOver && !isPaused) {
+                    inactivityTimer = setTimeout(() => {
+                        if (!isPaused && !gameOver) {
+                            console.log("Inactivity Pause Triggered");
+                            togglePause();
+                        }
+                    }, INACTIVITY_LIMIT);
+                }
             }
 
             // --- Save/Load Functions ---
             function saveState() {
                 if (gameOver) return;
-                // Save level and pause state
                 const state = { snake, food, score, direction, currentSpeed, level, isPaused };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
                 localStorage.setItem(HIGH_SCORE_KEY, highScore);
@@ -496,12 +457,12 @@
                 if (savedState) {
                     const state = JSON.parse(savedState);
                     snake = state.snake;
-                    food = state.food;
+                    food = state.food || {x:-1, y:-1, type: 'normal'}; // backward compat
                     score = state.score;
                     direction = state.direction;
                     currentSpeed = state.currentSpeed;
-                    level = state.level || 1; // Load level, default to 1
-                    isPaused = state.isPaused || false; // Load pause state
+                    level = state.level || 1;
+                    isPaused = true; // Always load paused
                     return true;
                 }
                 return false;
@@ -513,32 +474,35 @@
             
             // --- UI/Screen Management ---
             function showStartScreen() {
+                // Save if we are coming from a running game
+                if (!gameOver && score > 0) saveState();
+
                 gameScreen.classList.add('hidden');
                 startScreen.classList.remove('hidden');
-                gameOverMsg.classList.add('hidden'); // Ensure game over is hidden
+                gameOverMsg.classList.add('hidden'); 
                 
                 highScore = parseInt(localStorage.getItem(HIGH_SCORE_KEY) || '0');
                 highScoreEl.textContent = highScore;
                 
+                // Check if there is a saved game to resume
                 if (loadState()) {
-                    // Saved state exists
                     startControls.classList.add('hidden');
                     resumeControls.classList.remove('hidden');
                     scoreEl.textContent = score;
-                    levelEl.textContent = level; // Show saved level
+                    levelEl.textContent = level;
                     updatePauseUI();
-                    drawGame(); // Draw the saved state onto the (hidden) canvas
+                    drawGame(); 
                 } else {
-                    // No saved state
                     startControls.classList.remove('hidden');
                     resumeControls.classList.add('hidden');
-                    initEmptyGame(); // Prepare a blank game
+                    initEmptyGame(); 
                 }
             }
             
             function showGameScreen() {
                 startScreen.classList.add('hidden');
                 gameScreen.classList.remove('hidden');
+                resetInactivityTimer(); // Start tracking inactivity
             }
 
             // --- Game Logic ---
@@ -553,9 +517,9 @@
                     case 'right': head.x += 1; break;
                 }
 
-                // Updated Wall & Collision Logic
+                // Collision Logic
                 if (level < 20) {
-                    // Level 1-19: Wall-less (wrap around)
+                    // Wrap around
                     if (head.x < 0) head.x = tileCount - 1;
                     if (head.x >= tileCount) head.x = 0;
                     if (head.y < 0) head.y = tileCount - 1;
@@ -566,69 +530,156 @@
                         return;
                     }
                 } else {
-                    // Level 20+: Walls enabled
+                    // Walls
                     if (isWallCollision(head) || isSelfCollision(head)) {
                         endGame();
                         return;
                     }
                 }
 
-
                 snake.unshift(head);
 
+                // Eat Food
                 if (head.x === food.x && head.y === food.y) {
-                    score++;
+                    // Score Logic
+                    const points = (food.type === 'bonus') ? 5 : 1;
+                    score += points;
                     scoreEl.textContent = score;
                     
-                    // Level up logic
+                    // Level up logic (every 5 points approx, simplified)
                     if (score % 5 === 0) {
                         level++;
                         levelEl.textContent = level;
+                        updateSpeed();
                     }
 
                     spawnFood();
-                    updateSpeed();
                 } else {
-                    snake.pop();
+                    snake.pop(); // Remove tail (standard movement)
                 }
 
                 drawGame();
             }
 
             function drawGame() {
+                // Clear Canvas
                 ctx.fillStyle = 'rgba(17, 24, 39, 0.6)';
                 ctx.fillRect(0, 0, canvasSize, canvasSize);
+                ctx.shadowBlur = 0; // Reset shadow
 
-                // Determine current color based on level
+                // Determine visual theme
                 const colorIndex = Math.min(Math.floor((level - 1) / 5), snakeGradients.length - 1);
                 const currentSnakeGradient = snakeGradients[colorIndex];
                 const currentSnakeStroke = snakeGradientStrokes[colorIndex];
                 const currentFoodGradient = foodGradients[colorIndex];
                 const currentFoodStroke = foodGradientStrokes[colorIndex];
 
+                // Draw Snake
                 if (snake) {
                     snake.forEach((segment, index) => {
                         ctx.fillStyle = currentSnakeGradient;
                         ctx.strokeStyle = currentSnakeStroke; 
                         ctx.lineWidth = 2;
-                        ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize, gridSize);
-                        ctx.strokeRect(segment.x * gridSize, segment.y * gridSize, gridSize, gridSize);
                         
                         if (index === 0) {
-                            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-                            ctx.fillRect(segment.x * gridSize + 4, segment.y * gridSize + 4, gridSize - 8, gridSize - 8);
+                            // --- HEAD RENDERING ---
+                            const x = segment.x * gridSize;
+                            const y = segment.y * gridSize;
+                            
+                            // Draw Head Body (Square)
+                            ctx.fillRect(x, y, gridSize, gridSize);
+                            ctx.strokeRect(x, y, gridSize, gridSize);
+                            
+                            // Draw Eyes
+                            ctx.fillStyle = 'white';
+                            const eyeSize = gridSize / 5;
+                            const offset = gridSize / 3;
+                            
+                            let leftEyeX, leftEyeY, rightEyeX, rightEyeY;
+                            const currDir = direction || 'right'; 
+                            
+                            // Position eyes based on direction
+                            if (currDir === 'right') {
+                                leftEyeX = x + gridSize - offset; leftEyeY = y + offset;
+                                rightEyeX = x + gridSize - offset; rightEyeY = y + gridSize - offset;
+                            } else if (currDir === 'left') {
+                                leftEyeX = x + offset; leftEyeY = y + offset;
+                                rightEyeX = x + offset; rightEyeY = y + gridSize - offset;
+                            } else if (currDir === 'up') {
+                                leftEyeX = x + offset; leftEyeY = y + offset;
+                                rightEyeX = x + gridSize - offset; rightEyeY = y + offset;
+                            } else { // down
+                                leftEyeX = x + offset; leftEyeY = y + gridSize - offset;
+                                rightEyeX = x + gridSize - offset; rightEyeY = y + gridSize - offset;
+                            }
+
+                            // Whites
+                            ctx.beginPath();
+                            ctx.arc(leftEyeX, leftEyeY, eyeSize, 0, Math.PI * 2);
+                            ctx.arc(rightEyeX, rightEyeY, eyeSize, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            // Pupils
+                            ctx.fillStyle = 'black';
+                            const pupilSize = eyeSize / 2;
+                            ctx.beginPath();
+                            ctx.arc(leftEyeX, leftEyeY, pupilSize, 0, Math.PI * 2);
+                            ctx.arc(rightEyeX, rightEyeY, pupilSize, 0, Math.PI * 2);
+                            ctx.fill();
+
+                        } else {
+                            // Body Segment
+                            ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize, gridSize);
+                            ctx.strokeRect(segment.x * gridSize, segment.y * gridSize, gridSize, gridSize);
                         }
                     });
                 }
 
+                // Draw Food
                 if (food && food.x > -1) {
-                    ctx.fillStyle = currentFoodGradient;
-                    ctx.strokeStyle = currentFoodStroke;
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.roundRect(food.x * gridSize, food.y * gridSize, gridSize, gridSize, [5]);
-                    ctx.fill();
-                    ctx.stroke();
+                    if (food.type === 'bonus') {
+                        // Bonus Food: Gold + Sparkle
+                        const pulse = Math.abs(Math.sin(Date.now() / 200)); // Pulse effect
+                        
+                        ctx.shadowBlur = 20 * pulse;
+                        ctx.shadowColor = '#fbbf24'; // Amber glow
+                        
+                        ctx.fillStyle = '#fbbf24'; // Gold fill
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 2;
+                        
+                        // Draw diamond shape for bonus
+                        const cx = food.x * gridSize + gridSize/2;
+                        const cy = food.y * gridSize + gridSize/2;
+                        const size = gridSize/2 + (2 * pulse); // Pulsing size
+
+                        ctx.beginPath();
+                        ctx.moveTo(cx, cy - size);
+                        ctx.lineTo(cx + size, cy);
+                        ctx.lineTo(cx, cy + size);
+                        ctx.lineTo(cx - size, cy);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+
+                        ctx.shadowBlur = 0; // Reset
+                    } else {
+                        // Normal Food
+                        ctx.fillStyle = currentFoodGradient;
+                        ctx.strokeStyle = currentFoodStroke;
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.roundRect(food.x * gridSize, food.y * gridSize, gridSize, gridSize, [5]);
+                        ctx.fill();
+                        ctx.stroke();
+                    }
+                }
+                
+                // Request animation frame for smooth sparkle if bonus exists
+                if (food && food.type === 'bonus' && !isPaused && !gameOver) {
+                    requestAnimationFrame(() => {
+                        // Using gameLoop speed is better for performance
+                    });
                 }
             }
 
@@ -636,15 +687,17 @@
                 while (true) {
                     food = {
                         x: Math.floor(Math.random() * tileCount),
-                        y: Math.floor(Math.random() * tileCount)
+                        y: Math.floor(Math.random() * tileCount),
+                        // 20% Chance for Bonus Food
+                        type: (Math.random() > 0.8) ? 'bonus' : 'normal'
                     };
+                    // Ensure food doesn't spawn on snake
                     if (!snake.some(segment => segment.x === food.x && segment.y === food.y)) {
                         break;
                     }
                 }
             }
 
-            // Split collision logic
             function isSelfCollision(head) {
                 for (let i = 1; i < snake.length; i++) {
                     if (head.x === snake[i].x && head.y === snake[i].y) {
@@ -659,7 +712,6 @@
             }
 
             function updateSpeed() {
-                // Increase speed based on score, but don't go faster than 50ms
                 currentSpeed = Math.max(50, initialSpeed - (score * 2));
                 clearInterval(gameInterval);
                 gameInterval = setInterval(gameLoop, currentSpeed);
@@ -668,18 +720,18 @@
             function startGame() {
                 clearState(); 
                 
-                // Set speed from slider
+                // Set speed
                 const speedValue = speedSlider.value;
-                if (speedValue === '1') initialSpeed = 250; // New Slow (was 200)
-                else if (speedValue === '2') initialSpeed = 200; // New Normal (was 150)
-                else if (speedValue === '3') initialSpeed = 150; // New Fast (was 100)
+                if (speedValue === '1') initialSpeed = 250;
+                else if (speedValue === '2') initialSpeed = 200;
+                else if (speedValue === '3') initialSpeed = 150;
                 
                 currentSpeed = initialSpeed;
                 
                 snake = [ { x: Math.floor(tileCount / 2), y: Math.floor(tileCount / 2) } ];
                 food = {};
                 score = 0;
-                level = 1; // Start at level 1
+                level = 1; 
                 direction = 'right';
                 gameOver = false;
                 isPaused = false;
@@ -695,28 +747,19 @@
                 
                 drawGame();
                 showGameScreen();
-                resetInactivityTimer(); // NEW: Start inactivity timer
             }
             
             function resumeGame() {
                 gameOver = false;
-                // isPaused = false; // User must unpause
+                isPaused = true; // Start paused so user can get ready
+                updatePauseUI();
                 drawGame();
                 showGameScreen();
-                
-                if (!isPaused) {
-                    clearInterval(gameInterval);
-                    gameInterval = setInterval(gameLoop, currentSpeed);
-                    resetInactivityTimer(); // NEW: Reset timer on resume
-                } else {
-                    updatePauseUI(); // Show pause overlay if resuming to a paused state
-                }
             }
 
             function endGame() {
                 gameOver = true;
                 isPaused = false;
-                clearTimeout(inactivityTimer); // NEW: Clear timer on game over
                 updatePauseUI();
                 clearInterval(gameInterval);
                 clearState(); 
@@ -731,7 +774,6 @@
                 gameOverMsg.classList.remove('hidden');
             }
 
-            // --- Pause Function ---
             function togglePause() {
                 if (gameOver) return;
                 
@@ -740,11 +782,10 @@
                 
                 if (isPaused) {
                     clearInterval(gameInterval);
-                    clearTimeout(inactivityTimer); // NEW: Clear timer when paused
                 } else {
+                    resetInactivityTimer(); // Resume activity timer
                     clearInterval(gameInterval);
                     gameInterval = setInterval(gameLoop, currentSpeed);
-                    resetInactivityTimer(); // NEW: Reset timer when unpaused
                 }
             }
             
@@ -760,24 +801,10 @@
                 }
             }
 
-            // --- NEW: Inactivity Timer Functions ---
-            function pauseOnInactivity() {
-                if (!gameOver && !isPaused) {
-                    togglePause();
-                }
-            }
-
-            function resetInactivityTimer() {
-                clearTimeout(inactivityTimer);
-                if (!gameOver && !isPaused) {
-                    inactivityTimer = setTimeout(pauseOnInactivity, 10000); // 10 seconds
-                }
-            }
-
             // --- Input Handlers ---
             function changeDirection(e) {
-                // NEW: Reset inactivity timer on any key press
-                // Note: We call resetInactivityTimer() from the global event listener now.
+                // Reset timer on keypress
+                resetInactivityTimer();
 
                 const goingUp = direction === 'up';
                 const goingDown = direction === 'down';
@@ -801,7 +828,7 @@
                         e.preventDefault();
                         if (!goingLeft) direction = 'right';
                         break;
-                    case ' ': // Pause on Spacebar
+                    case ' ': 
                         e.preventDefault();
                         togglePause();
                         break;
@@ -809,27 +836,18 @@
             }
             
             function handleDpad(dir) {
-                // NEW: Reset inactivity timer on D-pad press
-                // Note: We call resetInactivityTimer() from the global mousedown/touchstart listeners.
-
+                resetInactivityTimer();
+                
                 const goingUp = direction === 'up';
-                const goingDown = direction ==='down';
+                const goingDown = direction === 'down';
                 const goingLeft = direction === 'left';
                 const goingRight = direction === 'right';
 
                 switch (dir) {
-                    case 'up':
-                        if (!goingDown) direction = 'up';
-                        break;
-                    case 'down':
-                        if (!goingUp) direction = 'down';
-                        break;
-                    case 'left':
-                        if (!goingRight) direction = 'left';
-                        break;
-                    case 'right':
-                        if (!goingLeft) direction = 'right';
-                        break;
+                    case 'up': if (!goingDown) direction = 'up'; break;
+                    case 'down': if (!goingUp) direction = 'down'; break;
+                    case 'left': if (!goingRight) direction = 'left'; break;
+                    case 'right': if (!goingLeft) direction = 'right'; break;
                 }
             }
             
@@ -841,31 +859,37 @@
             resumeBtn.addEventListener('click', resumeGame);
             resetBtn.addEventListener('click', () => {
                 clearState();
-                showStartScreen(); // Refresh the start screen
+                showStartScreen(); 
             });
             
             // Game Screen
             playAgainBtn.addEventListener('click', showStartScreen);
+            
             btnUp.addEventListener('click', () => handleDpad('up'));
             btnDown.addEventListener('click', () => handleDpad('down'));
             btnLeft.addEventListener('click', () => handleDpad('left'));
             btnRight.addEventListener('click', () => handleDpad('right'));
             btnPause.addEventListener('click', togglePause);
             
-            // Save state when leaving the page
-            window.addEventListener('beforeunload', () => {
-                if (!gameOver) {
-                    saveState();
-                }
+            // NEW: Menu Button
+            btnMenu.addEventListener('click', () => {
+                isPaused = true; // Pause game
+                updatePauseUI();
+                clearInterval(gameInterval);
+                showStartScreen(); // Go to start screen (triggering save)
             });
             
-            // --- NEW: Global Activity Listeners for Inactivity Timer ---
+            // Save state when leaving
+            window.addEventListener('beforeunload', () => {
+                if (!gameOver) saveState();
+            });
+            
+            // Activity Listeners
             document.addEventListener('keydown', resetInactivityTimer);
             document.addEventListener('mousedown', resetInactivityTimer);
             document.addEventListener('touchstart', resetInactivityTimer);
 
-            // --- Initial Load ---
-            // createGradients(); // <-- This call was moved to the top
+            // Initial Load
             showStartScreen();
         });
     </script>
