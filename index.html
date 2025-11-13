@@ -9,7 +9,7 @@
     
     <!-- NEW: Add Favicon links -->
     <link rel="icon" type="image/png" sizes="192x192" href="https://raw.githubusercontent.com/Mirjan-Ali-Sha/snake_game/main/Snake_Game_Icon-small.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="https://raw.githubusercontent.com/Mirjan-Ali-Sha/snake_game/main/Snake_Game_Icon-small.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="https://raw.githubusercontent.com/Mirjan-Ali-Sha/snake_game/main/Snake_Game_Icon-large.png">
     
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -35,7 +35,7 @@
                     "type": "image/png"
                 },
                 {
-                    "src": "https://raw.githubusercontent.com/Mirjan-Ali-Sha/snake_game/main/Snake_Game_Icon-small.png",
+                    "src": "https://raw.githubusercontent.com/Mirjan-Ali-Sha/snake_game/main/Snake_Game_Icon-large.png",
                     "sizes": "512x512",
                     "type": "image/png"
                 }
@@ -538,8 +538,8 @@
             
             // --- UI/Screen Management ---
             function showStartScreen() {
-                // Save if we are coming from a running game
-                if (!gameOver && score > 0) saveState();
+                // REMOVED: Redundant save logic
+                // if (!gameOver && score > 0) saveState();
 
                 gameScreen.classList.add('hidden');
                 startScreen.classList.remove('hidden');
@@ -912,6 +912,7 @@
                 if (isPaused) {
                     clearInterval(gameInterval);
                     clearTimeout(inactivityTimer); // Stop inactivity timer
+                    saveState(); // <-- GAME IS NOW SAVED ON PAUSE
                 } else {
                     resetInactivityTimer(); // Resume activity timer
                     clearInterval(gameInterval);
